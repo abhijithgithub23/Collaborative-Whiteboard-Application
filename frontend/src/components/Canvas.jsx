@@ -75,7 +75,7 @@ export default function Canvas({ roomId }) {
     ctx.beginPath();
     ctx.moveTo(x0, y0);
     ctx.lineTo(x1, y1);
-    ctx.lineWidth = 3;
+    ctx.lineWidth = tool === "eraser" ? 20 : 3;  // ✅ Eraser is bigger
     ctx.lineCap = "round";
 
     if (tool === "eraser") {
