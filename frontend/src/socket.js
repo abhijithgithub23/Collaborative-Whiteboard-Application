@@ -1,4 +1,4 @@
 import { io } from "socket.io-client";
 
-const socket = io("http://localhost:5005");
+const socket = io(); // automatically connects to the same origin
 export default socket;

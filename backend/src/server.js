@@ -30,20 +30,23 @@ const io = new Server(server, {
 // Socket events
 socketHandler(io);
 
+// -----------------------------
 // Serve frontend in production
+// -----------------------------
 if (process.env.NODE_ENV === "production") {
-  app.use(
-    express.static(path.join(__dirname, "../../frontend/dist"))
-  );
+  // 1. Serve static files from frontend/dist
+  const frontendPath = path.join(__dirname, "../../frontend/dist");
+  app.use(express.static(frontendPath));
 
+  // 2. Send index.html for all unknown routes (for React Router)
   app.get("*", (req, res) => {
-    res.sendFile(
-      path.join(__dirname, "../../frontend/dist/index.html")
-    );
+    res.sendFile(path.join(frontendPath, "index.html"));
   });
 }
 
-// Start server ONLY after DB connects
+// -----------------------------
+// Start server AFTER DB connection
+// -----------------------------
 const startServer = async () => {
   try {
     await connectDB();
