@@ -1,5 +1,7 @@
 #  Collaborative Whiteboard Application
 
+Link to website -> https://collaborative-whiteboard-application.onrender.com/room/test123
+
 A real-time collaborative whiteboard built using **MERN stack** and **Socket.IO**, allowing multiple users to draw simultaneously on a shared canvas and persist drawings for later access.
 
 ---
