@@ -47,7 +47,6 @@ This application separates **real-time communication** and **data persistence**:
 
 ---
 
----
 
 ##  Socket.IO Flow (Backend)
 
@@ -59,26 +58,20 @@ This application separates **real-time communication** and **data persistence**:
 
 ---
 
-##  Database Design
 
-### Snapshot Model
-
-- One document per room
-- Stores the **latest canvas image** as Base64
-- Uses `upsert` to overwrite existing snapshots
 
 ##  Setup Instructions
 
 1. Clone the repository
-   git clone https://github.com/abhijithgithub23/Collaborative-Whiteboard-Application.git
-cd Collaborative-Whiteboard-Application
+   -git clone https://github.com/abhijithgithub23/Collaborative-Whiteboard-Application.git
+   -cd Collaborative-Whiteboard-Application
 
 2. Backend setup
-   cd backend
-npm install
-npm run dev
+   -cd backend
+-npm install
+-npm run dev
 
 3. Frontend setup
-   cd frontend
-npm install
-npm run dev
+   -cd frontend
+-npm install
+-npm run dev
