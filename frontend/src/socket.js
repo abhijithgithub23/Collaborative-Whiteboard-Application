@@ -1,4 +1,10 @@
-// import { io } from "socket.io-client";
+// // frontend/src/socket.js
+import { io } from "socket.io-client";
 
-// const socket = io(); // automatically connects to the same origin
-// export default socket;
+const SOCKET_URL = "https://collaborative-whiteboard-application.onrender.com";
+
+const socket = io(SOCKET_URL, {
+  transports: ["websocket"],
+});
+
+export default socket;  // ✅ default export
