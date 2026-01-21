@@ -1,48 +1,69 @@
 import { useEffect, useRef, useState } from "react";
-import socket from "../socket";
+import { io } from "socket.io-client";
+
+const SOCKET_URL = "https://collaborative-whiteboard-application.onrender.com";
 
 export default function Canvas({ roomId }) {
   const canvasRef = useRef(null);
   const ctxRef = useRef(null);
+  const socketRef = useRef(null);
+
   const [drawing, setDrawing] = useState(false);
   const [color, setColor] = useState("#000");
   const [tool, setTool] = useState("pen");
 
-  // Initialize canvas and load snapshot
+  // ===============================
+  // INIT CANVAS + SOCKET
+  // ===============================
   useEffect(() => {
+    if (!roomId) return;
+
     const canvas = canvasRef.current;
     canvas.width = window.innerWidth;
     canvas.height = window.innerHeight;
     ctxRef.current = canvas.getContext("2d");
 
-    // Load latest snapshot from backend
-    const loadSnapshot = async () => {
-      try {
-        // Load snapshot
-        const res = await fetch(`/api/snapshots/${roomId}`);
-        const data = await res.json();
-        if (data?.image) {
-          const img = new Image();
-          img.src = data.image;
-          img.onload = () => {
-            ctxRef.current.clearRect(0, 0, canvas.width, canvas.height);
-            ctxRef.current.drawImage(img, 0, 0);
-          };
-        }
-      } catch (err) {
-        console.error("Failed to load snapshot:", err);
-      }
-    };
+    // ---- SOCKET INIT (PER CLIENT) ----
+    socketRef.current = io(SOCKET_URL, {
+      transports: ["websocket"],
+    });
+
+    socketRef.current.emit("join-room", roomId);
+
+    socketRef.current.on("draw", drawFromServer);
+    socketRef.current.on("clear-canvas", clearCanvasFromServer);
+
     loadSnapshot();
 
-    // Listen for real-time drawing
-    socket.on("draw", drawFromServer);
-    socket.on("clear-canvas", clearCanvasFromServer);
-
-    return () => socket.off();
+    return () => {
+      socketRef.current.disconnect();
+    };
   }, [roomId]);
 
-  // Draw received from server
+  // ===============================
+  // LOAD SNAPSHOT
+  // ===============================
+  const loadSnapshot = async () => {
+    try {
+      const res = await fetch(`/api/snapshots/${roomId}`);
+      const data = await res.json();
+
+      if (data?.image) {
+        const img = new Image();
+        img.src = data.image;
+        img.onload = () => {
+          ctxRef.current.clearRect(0, 0, canvasRef.current.width, canvasRef.current.height);
+          ctxRef.current.drawImage(img, 0, 0);
+        };
+      }
+    } catch (err) {
+      console.error("Failed to load snapshot", err);
+    }
+  };
+
+  // ===============================
+  // DRAW HELPERS
+  // ===============================
   const drawFromServer = ({ x0, y0, x1, y1, color, tool }) => {
     drawLine(x0, y0, x1, y1, color, tool);
   };
@@ -68,6 +89,9 @@ export default function Canvas({ roomId }) {
     ctx.stroke();
   };
 
+  // ===============================
+  // MOUSE EVENTS
+  // ===============================
   const startDraw = (e) => {
     setDrawing(true);
     ctxRef.current.lastX = e.clientX;
@@ -84,7 +108,15 @@ export default function Canvas({ roomId }) {
 
     drawLine(x0, y0, x1, y1, color, tool);
 
-    socket.emit("draw", { roomId, x0, y0, x1, y1, color, tool });
+    socketRef.current.emit("draw", {
+      roomId,
+      x0,
+      y0,
+      x1,
+      y1,
+      color,
+      tool,
+    });
 
     ctxRef.current.lastX = x1;
     ctxRef.current.lastY = y1;
@@ -92,41 +124,45 @@ export default function Canvas({ roomId }) {
 
   const stopDraw = () => setDrawing(false);
 
+  // ===============================
+  // CLEAR CANVAS
+  // ===============================
   const clearCanvas = () => {
-    const canvas = canvasRef.current;
     const ctx = ctxRef.current;
     if (!ctx) return;
 
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-    socket.emit("clear-canvas", roomId);
+    ctx.clearRect(0, 0, canvasRef.current.width, canvasRef.current.height);
+    socketRef.current.emit("clear-canvas", roomId);
   };
 
   const clearCanvasFromServer = () => {
-    const canvas = canvasRef.current;
     const ctx = ctxRef.current;
     if (!ctx) return;
 
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.clearRect(0, 0, canvasRef.current.width, canvasRef.current.height);
   };
 
+  // ===============================
+  // SAVE SNAPSHOT
+  // ===============================
   const saveSnapshot = async () => {
-    const canvas = canvasRef.current;
-    const image = canvas.toDataURL();
+    const image = canvasRef.current.toDataURL();
 
     try {
-      // Save snapshot
-await fetch(`/api/snapshots`, {
-  method: "POST",
-  headers: { "Content-Type": "application/json" },
-  body: JSON.stringify({ roomId, image }),
-});
+      await fetch(`/api/snapshots`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ roomId, image }),
+      });
       alert("Snapshot saved!");
     } catch (err) {
-      console.error("Failed to save snapshot:", err);
+      console.error("Failed to save snapshot", err);
     }
   };
 
+  // ===============================
+  // RENDER
+  // ===============================
   return (
     <>
       {/* Toolbar */}
@@ -138,90 +174,25 @@ await fetch(`/api/snapshots`, {
           width: "100%",
           display: "flex",
           justifyContent: "space-around",
-          alignItems: "center",
-          padding: "10px 0",
-          backgroundColor: "#1f2937",
-          boxShadow: "0 3px 6px rgba(0,0,0,0.2)",
+          padding: "10px",
+          background: "#1f2937",
           zIndex: 10,
         }}
       >
-        <button
-          onClick={() => setTool("pen")}
-          style={{
-            backgroundColor: tool === "pen" ? "#2563eb" : "#3b82f6",
-            color: "#fff",
-            border: "none",
-            borderRadius: "5px",
-            padding: "8px 16px",
-            cursor: "pointer",
-            fontWeight: "bold",
-          }}
-        >
-          Pen
-        </button>
-
-        <button
-          onClick={() => setTool("eraser")}
-          style={{
-            backgroundColor: tool === "eraser" ? "#ef4444" : "#f87171",
-            color: "#fff",
-            border: "none",
-            borderRadius: "5px",
-            padding: "8px 16px",
-            cursor: "pointer",
-            fontWeight: "bold",
-          }}
-        >
-          Eraser
-        </button>
-
-        <input
-          type="color"
-          value={color}
-          onChange={(e) => setColor(e.target.value)}
-          style={{ width: "40px", height: "40px", border: "none", borderRadius: "50%", cursor: "pointer" }}
-        />
-
-        <button
-          onClick={clearCanvas}
-          style={{
-            backgroundColor: "#fbbf24",
-            color: "#000",
-            border: "none",
-            borderRadius: "5px",
-            padding: "8px 16px",
-            cursor: "pointer",
-            fontWeight: "bold",
-          }}
-        >
-          Clear
-        </button>
-
-        <button
-          onClick={saveSnapshot}
-          style={{
-            backgroundColor: "#10b981",
-            color: "#fff",
-            border: "none",
-            borderRadius: "5px",
-            padding: "8px 16px",
-            cursor: "pointer",
-            fontWeight: "bold",
-          }}
-        >
-          Save
-        </button>
+        <button onClick={() => setTool("pen")}>Pen</button>
+        <button onClick={() => setTool("eraser")}>Eraser</button>
+        <input type="color" value={color} onChange={(e) => setColor(e.target.value)} />
+        <button onClick={clearCanvas}>Clear</button>
+        <button onClick={saveSnapshot}>Save</button>
       </div>
 
-      {/* Canvas */}
       <canvas
         ref={canvasRef}
-        
         onMouseDown={startDraw}
         onMouseMove={draw}
         onMouseUp={stopDraw}
         onMouseLeave={stopDraw}
-        style={{ display: "block", border: "2px solid black",  }}
+        style={{ display: "block", border: "2px solid black" }}
       />
     </>
   );
