@@ -18,7 +18,8 @@ export default function Canvas({ roomId }) {
     // Load latest snapshot from backend
     const loadSnapshot = async () => {
       try {
-        const res = await fetch(`http://localhost:5005/api/snapshots/${roomId}`);
+        // Load snapshot
+        const res = await fetch(`/api/snapshots/${roomId}`);
         const data = await res.json();
         if (data?.image) {
           const img = new Image();
@@ -114,11 +115,12 @@ export default function Canvas({ roomId }) {
     const image = canvas.toDataURL();
 
     try {
-      await fetch(`http://localhost:5005/api/snapshots`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ roomId, image }),
-      });
+      // Save snapshot
+await fetch(`/api/snapshots`, {
+  method: "POST",
+  headers: { "Content-Type": "application/json" },
+  body: JSON.stringify({ roomId, image }),
+});
       alert("Snapshot saved!");
     } catch (err) {
       console.error("Failed to save snapshot:", err);
